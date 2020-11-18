@@ -1,4 +1,4 @@
-
+package fr.istic.bdanlos_mpays.hs;
 /* Data class
  *
  * binMeta project
