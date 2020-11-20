@@ -39,6 +39,7 @@ public class RandomWalk extends binMeta
    {
       Random R = new Random();
       Data D = new Data(this.solution);
+      System.out.println("Solution" + D.toString());
       long startime = System.currentTimeMillis();
 
       // main loop
