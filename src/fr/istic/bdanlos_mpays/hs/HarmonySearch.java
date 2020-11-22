@@ -1,12 +1,11 @@
 package fr.istic.bdanlos_mpays.hs;
 
-import java.util.Arrays;
 import java.util.Random;
 
 public class HarmonySearch extends binMeta {
 
     /**
-     * Represent an Harmony of HarmonyMemory
+     * Represent an Harmony (a solution) of HarmonyMemory
      */
     private class Harmony{
 
@@ -42,12 +41,27 @@ public class HarmonySearch extends binMeta {
             this.grade = grade;
         }
 
+        private String gradeToString(){
+            String r = "";
+            switch (grade){
+                case 0:
+                    r = "BEST";
+                    break;
+                case 2:
+                    r = "WORST";
+                    break;
+                default:
+                    break;
+            }
+            return r;
+        }
+
         @Override
         public String toString() {
             return "Harmony{" +
                     "data=" + data +
                     ", solution=" + solution +
-                    ", grade=" + grade +
+                    "," + gradeToString() +
                     '}';
         }
 
@@ -77,46 +91,44 @@ public class HarmonySearch extends binMeta {
         }
     }
 
+    private void printHM(String step){
+        StringBuilder r = new StringBuilder("N=" + step + "\nHM{ \n");
+        for (int i = 0; i < this.HMS; i++){
+            r.append(HM[i]).append("\n");
+        }
+        r.append("}");
+        System.out.println(r);
+    }
+
     /**
      * Initialisation of HarmonyMemory
      * Initialise the HarmonyMemory with a random values, which belong to the objective's set
      */
     private void initialisation(){
         this.HM = new Harmony[this.HMS];
-        int best, worst;
+        int best = 0;
+        int worst = 0;
 
-        Data first = new Data(this.solution);
-        Data second = new Data(obj.solutionSample());
-
-        if (obj.value(first) > obj.value(second)){
-            this.HM[0] = new Harmony(first,obj.value(first),2);
-            this.HM[1] = new Harmony(second,obj.value(second),0);
-            best = 1;
-            worst = 0;
-            this.solution = new Data(second);
-        }else{
-            this.HM[0] = new Harmony(first,obj.value(first),0);
-            this.HM[1] = new Harmony(second,obj.value(second),2);
-            best = 0;
-            worst = 1;
-        }
+        Data nextData = new Data(this.solution);
+        double nextSolution = obj.value(nextData);
+        this.HM[0] = new Harmony(nextData,nextSolution,1);
 
         for(int i = 1; i < this.HMS; i++){
-            Data next = new Data(obj.solutionSample());
-            if (this.HM[best].solution > obj.value(next)){
-                this.HM[best].setGrade(1);
-                this.HM[i] = new Harmony(next, obj.value(next), 0);
+            nextData = new Data(obj.solutionSample());
+            nextSolution = obj.value(nextData);
+            this.HM[i] = new Harmony(nextData,nextSolution,1);
+            if (nextSolution < this.HM[best].getSolution()){
                 best = i;
-                this.solution = new Data(next);
-            }else if(this.HM[worst].solution < obj.value(next)){
-                this.HM[worst].setGrade(1);
-                this.HM[i] = new Harmony(next, obj.value(next), 2);
+            }else if(nextSolution > this.HM[worst].getSolution()){
                 worst = i;
-            }else{
-                this.HM[i] = new Harmony(next, obj.value(next), 1);
             }
         }
+        this.HM[best].setGrade(0);
+        this.objValue = this.HM[best].getSolution();
+        this.solution = this.HM[best].getData();
+        this.HM[worst].setGrade(2);
 
+        printHM("Init");
     }
 
     @Override
@@ -124,17 +136,25 @@ public class HarmonySearch extends binMeta {
      * Optimization of HarmonyMemory
      */
     public void optimize() {
-        Random R = new Random();
-        Data D = new Data(this.solution);
         long startime = System.currentTimeMillis();
+
+        Random R = new Random();
+        float ran;
+
+        //Initialisation of HarmonyMemory
+        initialisation();
 
         // main loop
         while (System.currentTimeMillis() - startime < this.maxTime)
         {
-
+            ran = R.nextFloat();
         }
     }
 
+    /**
+     *
+     * @param harmony
+     */
     private void changeHarmony(Harmony harmony){
 
     }
@@ -148,7 +168,6 @@ public class HarmonySearch extends binMeta {
         Objective obj = new BitCounter(n);
         Data D = obj.solutionSample();
         HarmonySearch hs = new HarmonySearch(D,obj,ITMAX);
-        hs.initialisation();
         System.out.println(hs);
         System.out.println("starting point : " + hs.getSolution());
         System.out.println("optimizing ...");
@@ -156,6 +175,43 @@ public class HarmonySearch extends binMeta {
         System.out.println(hs);
         System.out.println("solution : " + hs.getSolution());
         System.out.println();
+
+        // Fermat
+        int exp = 2;
+        int ndigits = 10;
+        obj = new Fermat(exp,ndigits);
+        D = obj.solutionSample();
+        hs = new HarmonySearch(D,obj,ITMAX);
+        System.out.println(hs);
+        System.out.println("starting point : " + hs.getSolution());
+        System.out.println("optimizing ...");
+        hs.optimize();
+        System.out.println(hs);
+        System.out.println("solution : " + hs.getSolution());
+        Data x = new Data(hs.solution,0,ndigits-1);
+        Data y = new Data(hs.solution,ndigits,2*ndigits-1);
+        Data z = new Data(hs.solution,2*ndigits,3*ndigits-1);
+        System.out.print("equivalent to the equation : " + x.posLongValue() + "^" + exp + " + " + y.posLongValue() + "^" + exp);
+        if (hs.objValue == 0.0)
+            System.out.print(" == ");
+        else
+            System.out.print(" ?= ");
+        System.out.println(z.posLongValue() + "^" + exp);
+        System.out.println();
+
+        // ColorPartition
+        n = 4;  int m = 14;
+        ColorPartition cp = new ColorPartition(n,m);
+        D = cp.solutionSample();
+        hs = new HarmonySearch(D,cp,ITMAX);
+        System.out.println(hs);
+        System.out.println("starting point : " + hs.getSolution());
+        System.out.println("optimizing ...");
+        hs.optimize();
+        System.out.println(hs);
+        System.out.println("solution : " + hs.getSolution());
+        cp.value(hs.solution);
+        System.out.println("corresponding to the matrix :\n" + cp.show());
 
 
     }
