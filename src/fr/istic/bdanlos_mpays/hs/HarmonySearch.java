@@ -214,16 +214,9 @@ public class HarmonySearch extends binMeta {
                     if (ran < par){
                         // Pitch adjustment
                         int distanceJump = (int) (ran*bw)+1;
-                        //System.out.println("**" + new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)) + " " + distanceJump + " " + new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump));
                         if (ran < 0.5f){
-                            /*Data data = new Data((int)  (new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).intValue()-ran*bw));
-                            int dist = (Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength);
-                            newHarmonyValue.add(new Data(data,32-dist,32-1));*/
                             newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
                         }else{
-                            /*Data data = new Data((int) (new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).intValue()+ran*bw));
-                            int dist = (Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength);
-                            newHarmonyValue.add(new Data(data,32-dist,32-1));*/
                             newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
                         }
                     }else{
@@ -236,14 +229,10 @@ public class HarmonySearch extends binMeta {
                 }
             }
             newHarmony = new Data(newHarmonyValue);
-            //System.out.println(newHarmony + "\n");
             int worst = getIndexofWorstHarmony();
             if (obj.value(newHarmony) < harmoniesMemory[worst].getSolution()){
                 this.harmoniesMemory[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
                 setAllGrade();
-            }
-            if (gn%10000 == 0){
-                //printHM(""+gn);
             }
             gn++;
         }
