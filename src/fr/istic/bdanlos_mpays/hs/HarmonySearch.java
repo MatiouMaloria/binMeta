@@ -213,11 +213,7 @@ public class HarmonySearch extends binMeta {
                     if (ran < par){
                         // Pitch adjustment
                         int distanceJump = (int) (ran*bw)+1;
-                        if (ran < 0.5f){
-                            newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
-                        }else{
-                            newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
-                        }
+                        newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
                     }else{
                         //Memory consideration
                         newHarmonyValue.add(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)));
