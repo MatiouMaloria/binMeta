@@ -16,7 +16,7 @@ public class HarmonySearch extends binMeta {
         private int grade;
 
         /**
-         *
+         * Harmony Constructor
          * @param data function with assigned values
          * @param solution function's solution
          * @param grade solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
