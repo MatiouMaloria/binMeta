@@ -73,11 +73,11 @@ public class HarmonySearch extends binMeta {
     private int HMS = 7; //Number of Harmony in HarmonyMemory (MINIMUM 2)
     private float HMCR = 0.95f;
     private int N;
-    private int NI = 20000; //Number of iteration of optimization's step
+    private int NI = 200000; //Number of iteration of optimization's step
     private float PARmin = 0.35f;
     private float PARmax = 0.99f;
     private double bwmin = 0.000001f;
-    private double bwmax = 4f;
+    private double bwmax = 20f;
 
 
     public HarmonySearch(Data startPoint, Objective obj, long maxTime, int N){
@@ -103,7 +103,7 @@ public class HarmonySearch extends binMeta {
     }
 
     private void printHM(String step){
-        StringBuilder r = new StringBuilder("N=" + step + "\nHM{ \n");
+        StringBuilder r = new StringBuilder("Problem : " + obj.name + " N=" + step + "\nHM{ \n");
         for (int i = 0; i < this.HMS; i++){
             r.append(HM[i]).append("\n");
         }
