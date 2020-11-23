@@ -9,7 +9,7 @@ public class HarmonySearch extends binMeta {
     /**
      * Represent an Harmony (a solution) of HarmonyMemory
      */
-    private class Harmony extends Data{
+    private class Harmony{
 
         private final Data data;
         private final double solution;
@@ -22,7 +22,6 @@ public class HarmonySearch extends binMeta {
          * @param grade solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
          */
         public Harmony(Data data, double solution, int grade){
-            super(data.numberOfBits());
             this.data = data;
             this.solution = solution;
             this.grade = grade;
