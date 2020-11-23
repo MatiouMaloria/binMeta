@@ -9,7 +9,7 @@ public class HarmonySearch extends binMeta {
     /**
      * Represent an Harmony (a solution) of HarmonyMemory
      */
-    private class Harmony{
+    private class Harmony extends Data{
 
         private final Data data;
         private final double solution;
@@ -22,27 +22,48 @@ public class HarmonySearch extends binMeta {
          * @param grade solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
          */
         public Harmony(Data data, double solution, int grade){
+            super(data.numberOfBits());
             this.data = data;
             this.solution = solution;
             this.grade = grade;
         }
 
+        /**
+         * Get the data
+         * @return Data function with assigned values
+         */
         public Data getData() {
             return data;
         }
 
+        /**
+         * Get the solution
+         * @return double function's solution
+         */
         public double getSolution() {
             return solution;
         }
 
+        /**
+         * Get the solution's grade
+         * @return int solution's grade
+         */
         public int getGrade() {
             return grade;
         }
 
+        /**
+         * Set the solution's grade
+         * @param grade int solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
+         */
         public void setGrade(int grade){
             this.grade = grade;
         }
 
+        /**
+         * Return the solution's grade to string format
+         * @return string solution's grade to string BEST, WORST or emptyString
+         */
         private String gradeToString(){
             String r = "";
             switch (grade){
@@ -69,18 +90,27 @@ public class HarmonySearch extends binMeta {
 
     }
 
-    private Harmony HM[];
+    private Harmony[] harmoniesMemory;
     private int HMS = 7; //Number of Harmony in HarmonyMemory (MINIMUM 2)
-    private float HMCR = 0.95f;
-    private int N;
-    private int NI = 200000; //Number of iteration of optimization's step
-    private float PARmin = 0.35f;
-    private float PARmax = 0.99f;
-    private double bwmin = 0.000001f;
-    private double bwmax = 20f;
+    private int musicNoteNumber; //Number of notes(variables) in a harmony
+    private final int iterationNumber = 10000000; //Number of iteration of optimization's step
+    /*
+    * Search parameter | Probability of search's type
+     */
+    private float HMCR = 0.90f; //(1-HMCR) Probability of full random note creation (random selection)
+    private float PARmin = 0.45f; //Minimum probability between pitch adjusting and memory consideration
+    private float PARmax = 0.85f; //Maximum probability between pitch adjusting and memory consideration
+    private double bwmin = 0.1f; //Minimal distance of jump
+    private double bwmax = 20f; //Maximal distance of jump
 
-
-    public HarmonySearch(Data startPoint, Objective obj, long maxTime, int N){
+    /**
+     * HarmonySearch Constructor
+     * @param startPoint First solution
+     * @param obj Function to minimize
+     * @param maxTime The maximum time allowed for the search for solutions
+     * @param musicNoteNumber Number of notes(variables) of the function
+     */
+    public HarmonySearch(Data startPoint, Objective obj, long maxTime, int musicNoteNumber){
         try
         {
             String msg = "Impossible to create HarmonySearch object: ";
@@ -92,8 +122,8 @@ public class HarmonySearch extends binMeta {
             this.obj = obj;
             this.objValue = this.obj.value(this.solution);
             this.metaName = "HarmonySearch";
-            if (startPoint.numberOfBits() % N != 0) throw  new Exception(msg + "division of decision variables impossible");
-            this.N = N;
+            if (startPoint.numberOfBits() % musicNoteNumber != 0) throw  new Exception(msg + "division of decision variables impossible");
+            this.musicNoteNumber = musicNoteNumber;
         }
         catch (Exception e)
         {
@@ -102,21 +132,39 @@ public class HarmonySearch extends binMeta {
         }
     }
 
+    /**
+     * Print the HarmoniesMemory
+     * @param step Search algorithm step
+     */
     private void printHM(String step){
         StringBuilder r = new StringBuilder("Problem : " + obj.name + " N=" + step + "\nHM{ \n");
         for (int i = 0; i < this.HMS; i++){
-            r.append(HM[i]).append("\n");
+            r.append(harmoniesMemory[i]).append("\n");
         }
         r.append("}");
         System.out.println(r);
     }
 
+    /**
+     * Calculate and return of PAR with the mathematical function of the HS's algorithm
+     * This mathematical function allows to change the probability of simple copy and copy and modification of new musical notes as the iterations.
+     * At the start of the program, the algorithm has a better chance of to copy and change the musical notes (pitch adjustment) than just copying the notes (memory consideration).
+     * @param gn Generation number
+     * @return par Probability between pitch adjustment and memory consideration
+     */
     private double getPar(int gn){
-        return PARmin + ((PARmax - PARmin) / NI) * gn;
+        return PARmin + ((PARmax - PARmin) / iterationNumber) * gn;
     }
 
+    /**
+     * Calculate and return of BW with the mathematical function of the HS's algorithm
+     * This mathematical function allows you to change the jump distance when changing the musical note (pitch adjustment).
+     * At the start of the program, the algorithm will make a big jump when changing variables(pitch adjustment) and a small jump at the end
+     * @param gn Generation number
+     * @return bw Distance of jump during the pitch adjustment
+     */
     private double getBw(int gn){
-        return bwmax * Math.exp((Math.log(bwmin/bwmax)/NI) * gn);
+        return bwmax * Math.exp((Math.log(bwmin/bwmax)/iterationNumber*gn));
     }
 
     /**
@@ -124,176 +172,124 @@ public class HarmonySearch extends binMeta {
      * Initialise the HarmonyMemory with a random values, which belong to the objective's set
      */
     private void initialisation(){
-        this.HM = new Harmony[this.HMS];
+        this.harmoniesMemory = new Harmony[this.HMS];
         Data nextData = new Data(this.solution);
         double nextSolution = obj.value(nextData);
-        this.HM[0] = new Harmony(nextData,nextSolution,1);
+        this.harmoniesMemory[0] = new Harmony(nextData, nextSolution, 1);
 
         for(int i = 1; i < this.HMS; i++){
             nextData = new Data(obj.solutionSample());
             nextSolution = obj.value(nextData);
-            this.HM[i] = new Harmony(nextData,nextSolution,1);
+            this.harmoniesMemory[i] = new Harmony(nextData, nextSolution, 1);
         }
         setAllGrade();
         //printHM("Init");
     }
 
     @Override
-    /**
-     * Optimization of HarmonyMemory
-     */
     public void optimize() {
-        long startime = System.currentTimeMillis();
-
         Random R = new Random();
-        int gn = 1;
-        List<Data> NHV;
+        List<Data> newHarmonyValue;
         Data newHarmony;
+
+        int gn = 1; //generation Number
+        int noteLength = this.solution.numberOfBits()/this.musicNoteNumber;
+        long startime = System.currentTimeMillis();
         float ran;
         double par;
         double bw;
 
-        // main loop
-        while (System.currentTimeMillis() - startime < this.maxTime && gn < NI){
-            NHV = new ArrayList<Data>();
-            // Creation of new harmony bit per bit
-            /*for (int i = 0; i < this.solution.numberOfBits(); i++){
+        // Main loop
+        while (System.currentTimeMillis() - startime < this.maxTime && gn < iterationNumber){
+            newHarmonyValue = new ArrayList<Data>();
+            // Creation of new harmony. Each loop turn is the creation of a new musical note
+            for (int i = 0; i < this.musicNoteNumber; i++){
                 par = getPar(gn);
                 bw = getBw(gn);
                 ran = R.nextFloat();
 
                 if (ran < HMCR){
-                    int d1 = (int)(ran*HMS);
-                    Data d2 = this.HM[d1].getData();
-                    int index = 0;
-                    while(index < i){
-                        d2.moveToNextBit();
-                        index++;
-                    }
-                    if (ran < 0.5){
-                        NHV.add(new Data(new Data(1, Integer.valueOf(d2.getCurrentBit()).byteValue()),true));
-                    }else{
-                        NHV.add(new Data(1, Integer.valueOf(d2.getCurrentBit()).byteValue()));
-                    }
-                }else{
-                    NHV.add(new Data(1,R.nextInt(2)));
-                }
-            }
-            newHarmony = new Data(NHV);
-            int worst = getIndexofWorstHarmony();
-            if (obj.value(newHarmony) < HM[worst].getSolution()){
-                this.HM[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
-                setAllGrade();
-            }
-            if (gn%100 == 0){
-                //printHM(""+gn);
-            }*/
-            // Creation of new harmony bytes per bytes
-            /*for (int i = 0; i < this.solution.numberOfBytes(); i++){
-                par = getPar(gn);
-                bw = getBw(gn);
-                ran = R.nextFloat();
-
-                if (ran < HMCR){
-                    int d1 = (int)(ran*HMS);
-                    Data d2 = this.HM[d1].getData();
+                    int musicNoteCopyIndex = (int)(ran*HMS);
+                    Data musicNoteCopy = this.harmoniesMemory[musicNoteCopyIndex].getData();
                     if (ran < par){
+                        // Pitch adjustment
+                        int distanceJump = (int) (ran*bw)+1;
+                        //System.out.println("**" + new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)) + " " + distanceJump + " " + new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump));
                         if (ran < 0.5f){
-                            Data data = new Data((int) ((int) new Data(d2,i*8,Math.min((i+1)*8-1, this.solution.numberOfBits()-1)).intValue()-ran*bw));
-                            int dist = (Math.min((i+1)*8, this.solution.numberOfBits()) - i*8);
-                            NHV.add(new Data(data,32-dist,32-1));
+                            /*Data data = new Data((int)  (new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).intValue()-ran*bw));
+                            int dist = (Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength);
+                            newHarmonyValue.add(new Data(data,32-dist,32-1));*/
+                            newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
                         }else{
-                            Data data = new Data((int) ((int) new Data(d2,i*8,Math.min((i+1)*8-1, this.solution.numberOfBits()-1)).intValue()+ran*bw));
-                            int dist = (Math.min((i+1)*8, this.solution.numberOfBits()) - i*8);
-                            NHV.add(new Data(data,32-dist,32-1));
+                            /*Data data = new Data((int) (new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).intValue()+ran*bw));
+                            int dist = (Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength);
+                            newHarmonyValue.add(new Data(data,32-dist,32-1));*/
+                            newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
                         }
                     }else{
-                        NHV.add(new Data(d2,i*8,Math.min((i+1)*8-1, this.solution.numberOfBits()-1)));
+                        //Memory consideration
+                        newHarmonyValue.add(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)));
                     }
                 }else{
-                    NHV.add(new Data((Math.min((i+1)*8, this.solution.numberOfBits()) - i*8),0.5f));
+                    //Random selection
+                    newHarmonyValue.add(new Data((Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength),0.5f));
                 }
             }
-            newHarmony = new Data(NHV);
+            newHarmony = new Data(newHarmonyValue);
+            //System.out.println(newHarmony + "\n");
             int worst = getIndexofWorstHarmony();
-            if (obj.value(newHarmony) < HM[worst].getSolution()){
-                this.HM[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
+            if (obj.value(newHarmony) < harmoniesMemory[worst].getSolution()){
+                this.harmoniesMemory[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
                 setAllGrade();
             }
-            /*if (gn%10000 == 0){
-                printHM(""+gn);
-            }*/
-            // Creation of new harmony variable per variable ( real solution )
-            for (int i = 0; i < this.N; i++){
-                par = getPar(gn);
-                bw = getBw(gn);
-                ran = R.nextFloat();
-
-                if (ran < HMCR){
-                    int d1 = (int)(ran*HMS);
-                    Data d2 = this.HM[d1].getData();
-                    if (ran < par){
-                        if (ran < 0.5f){
-                            Data data = new Data((int) ((int) new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)).intValue()-ran*bw));
-                            int dist = (Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N));
-                            NHV.add(new Data(data,32-dist,32-1));
-                        }else{
-                            Data data = new Data((int) ((int) new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)).intValue()+ran*bw));
-                            int dist = (Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N));
-                            NHV.add(new Data(data,32-dist,32-1));
-                        }
-                    }else{
-                        NHV.add(new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)));
-                    }
-                }else{
-                    NHV.add(new Data((Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N)),0.5f));
-                }
-                //System.out.println(NHV);
-            }
-            newHarmony = new Data(NHV);
-            //System.out.println(newHarmony);
-            int worst = getIndexofWorstHarmony();
-            if (obj.value(newHarmony) < HM[worst].getSolution()){
-                this.HM[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
-                setAllGrade();
-            }
-            if (gn%100 == 0){
+            if (gn%10000 == 0){
                 //printHM(""+gn);
             }
             gn++;
         }
     }
 
+    /**
+     * Get the index of worst harmony in the harmony memory
+     * @return int Index of worst harmony
+     */
     private int getIndexofWorstHarmony(){
         int worst  = 0;
         for (int i = 1; i < HMS; i++){
-            if (HM[i].getSolution() > HM[worst].getSolution()){
+            if (harmoniesMemory[i].getSolution() > harmoniesMemory[worst].getSolution()){
                 worst = i;
             }
         }
         return worst;
     }
 
+    /**
+     * Get the index of best harmony in the harmony memory
+     * @return int Index of best harmony
+     */
     private int getIndexofBestHarmony(){
         int best  = 0;
         for (int i = 1; i < HMS; i++){
-            if (HM[i].getSolution() < HM[best].getSolution()){
+            if (harmoniesMemory[i].getSolution() < harmoniesMemory[best].getSolution()){
                 best = i;
             }
         }
         return best;
     }
 
+    /**
+     * Updates all the notes attributed to our harmonies present in the harmony memory
+     */
     private void setAllGrade(){
         int best = getIndexofBestHarmony();
         int worst = getIndexofWorstHarmony();
         for (int i = 0; i < HMS; i++){
-            this.HM[i].setGrade(1);
+            this.harmoniesMemory[i].setGrade(1);
         }
-        this.HM[best].setGrade(0);
-        this.objValue = this.HM[best].getSolution();
-        this.solution = this.HM[best].getData();
-        this.HM[worst].setGrade(2);
+        this.harmoniesMemory[best].setGrade(0);
+        this.objValue = this.harmoniesMemory[best].getSolution();
+        this.solution = this.harmoniesMemory[best].getData();
+        this.harmoniesMemory[worst].setGrade(2);
     }
 
     public static void main(String[] args)
@@ -304,7 +300,7 @@ public class HarmonySearch extends binMeta {
         int n = 50;
         Objective obj = new BitCounter(n);
         Data D = obj.solutionSample();
-        HarmonySearch hs = new HarmonySearch(D,obj,ITMAX, 50);
+        HarmonySearch hs = new HarmonySearch(D,obj,ITMAX, 1);
         //Initialisation of HarmonyMemory
         hs.initialisation();
         System.out.println(hs);
@@ -344,7 +340,7 @@ public class HarmonySearch extends binMeta {
         n = 4;  int m = 14;
         ColorPartition cp = new ColorPartition(n,m);
         D = cp.solutionSample();
-        hs = new HarmonySearch(D,cp,ITMAX, n*m);
+        hs = new HarmonySearch(D,cp,ITMAX, 1);
         //Initialisation of HarmonyMemory
         hs.initialisation();
         System.out.println(hs);
