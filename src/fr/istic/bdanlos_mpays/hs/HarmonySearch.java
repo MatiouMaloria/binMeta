@@ -93,7 +93,7 @@ public class HarmonySearch extends binMeta {
     private Harmony[] harmoniesMemory;
     private int HMS = 7; //Number of Harmony in HarmonyMemory (MINIMUM 2)
     private int musicNoteNumber; //Number of notes(variables) in a harmony
-    private final int iterationNumber = 10000000; //Number of iteration of optimization's step
+    private final int iterationNumber = 8000000; //Number of iteration of optimization's step
     /*
     * Search parameter | Probability of search's type
      */
