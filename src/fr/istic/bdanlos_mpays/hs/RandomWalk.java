@@ -45,6 +45,7 @@ public class RandomWalk extends binMeta
       // main loop
       while (System.currentTimeMillis() - startime < this.maxTime)
       {
+         System.out.println(System.currentTimeMillis() - startime);
          // the random walker can walk in a neighbourhood of D
          // (Hamming distance is randomly selected among 1, 2 and 3)
          int h = 1 + R.nextInt(3);
