@@ -93,7 +93,7 @@ public class HarmonySearch extends binMeta {
     /**
      * My class of Thread to make a Thread in search of harmony
      */
-    private class MyThread implements Runnable{
+    private class MyThread extends Thread{
 
         private HarmonySearch hs;
         private Semaphore sem;
