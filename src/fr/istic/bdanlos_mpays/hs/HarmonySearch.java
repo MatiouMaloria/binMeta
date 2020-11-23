@@ -70,16 +70,17 @@ public class HarmonySearch extends binMeta {
     }
 
     private Harmony HM[];
-    private int HMS = 4; //Number of Harmony in HarmonyMemory (MINIMUM 2)
+    private int HMS = 7; //Number of Harmony in HarmonyMemory (MINIMUM 2)
     private float HMCR = 0.95f;
-    private int NI = 100000; //Number of iteration of optimization's step
+    private int N;
+    private int NI = 20000; //Number of iteration of optimization's step
     private float PARmin = 0.35f;
     private float PARmax = 0.99f;
-    private double bwmin = 0.00001f;
-    private double bwmax = 0.05f;
+    private double bwmin = 0.000001f;
+    private double bwmax = 4f;
 
 
-    public HarmonySearch(Data startPoint, Objective obj, long maxTime){
+    public HarmonySearch(Data startPoint, Objective obj, long maxTime, int N){
         try
         {
             String msg = "Impossible to create HarmonySearch object: ";
@@ -91,6 +92,8 @@ public class HarmonySearch extends binMeta {
             this.obj = obj;
             this.objValue = this.obj.value(this.solution);
             this.metaName = "HarmonySearch";
+            if (startPoint.numberOfBits() % N != 0) throw  new Exception(msg + "division of decision variables impossible");
+            this.N = N;
         }
         catch (Exception e)
         {
@@ -183,10 +186,10 @@ public class HarmonySearch extends binMeta {
                 setAllGrade();
             }
             if (gn%100 == 0){
-                printHM(""+gn);
+                //printHM(""+gn);
             }*/
             // Creation of new harmony bytes per bytes
-            for (int i = 0; i < this.solution.numberOfBytes(); i++){
+            /*for (int i = 0; i < this.solution.numberOfBytes(); i++){
                 par = getPar(gn);
                 bw = getBw(gn);
                 ran = R.nextFloat();
@@ -220,6 +223,43 @@ public class HarmonySearch extends binMeta {
             /*if (gn%10000 == 0){
                 printHM(""+gn);
             }*/
+            // Creation of new harmony variable per variable ( real solution )
+            for (int i = 0; i < this.N; i++){
+                par = getPar(gn);
+                bw = getBw(gn);
+                ran = R.nextFloat();
+
+                if (ran < HMCR){
+                    int d1 = (int)(ran*HMS);
+                    Data d2 = this.HM[d1].getData();
+                    if (ran < par){
+                        if (ran < 0.5f){
+                            Data data = new Data((int) ((int) new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)).intValue()-ran*bw));
+                            int dist = (Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N));
+                            NHV.add(new Data(data,32-dist,32-1));
+                        }else{
+                            Data data = new Data((int) ((int) new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)).intValue()+ran*bw));
+                            int dist = (Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N));
+                            NHV.add(new Data(data,32-dist,32-1));
+                        }
+                    }else{
+                        NHV.add(new Data(d2,i*(this.solution.numberOfBits()/this.N),Math.min((i+1)*(this.solution.numberOfBits()/this.N)-1, this.solution.numberOfBits()-1)));
+                    }
+                }else{
+                    NHV.add(new Data((Math.min((i+1)*(this.solution.numberOfBits()/this.N), this.solution.numberOfBits()) - i*(this.solution.numberOfBits()/this.N)),0.5f));
+                }
+                //System.out.println(NHV);
+            }
+            newHarmony = new Data(NHV);
+            //System.out.println(newHarmony);
+            int worst = getIndexofWorstHarmony();
+            if (obj.value(newHarmony) < HM[worst].getSolution()){
+                this.HM[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
+                setAllGrade();
+            }
+            if (gn%100 == 0){
+                //printHM(""+gn);
+            }
             gn++;
         }
     }
@@ -264,7 +304,7 @@ public class HarmonySearch extends binMeta {
         int n = 50;
         Objective obj = new BitCounter(n);
         Data D = obj.solutionSample();
-        HarmonySearch hs = new HarmonySearch(D,obj,ITMAX);
+        HarmonySearch hs = new HarmonySearch(D,obj,ITMAX, 50);
         //Initialisation of HarmonyMemory
         hs.initialisation();
         System.out.println(hs);
@@ -280,7 +320,7 @@ public class HarmonySearch extends binMeta {
         int ndigits = 10;
         obj = new Fermat(exp,ndigits);
         D = obj.solutionSample();
-        hs = new HarmonySearch(D,obj,ITMAX);
+        hs = new HarmonySearch(D,obj,ITMAX, 3);
         //Initialisation of HarmonyMemory
         hs.initialisation();
         System.out.println(hs);
@@ -304,7 +344,7 @@ public class HarmonySearch extends binMeta {
         n = 4;  int m = 14;
         ColorPartition cp = new ColorPartition(n,m);
         D = cp.solutionSample();
-        hs = new HarmonySearch(D,cp,ITMAX);
+        hs = new HarmonySearch(D,cp,ITMAX, n*m);
         //Initialisation of HarmonyMemory
         hs.initialisation();
         System.out.println(hs);
