@@ -1,31 +1,65 @@
 package fr.istic.bdanlos_mpays.hs;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 import java.util.concurrent.Semaphore;
+
+/**
+ * My class of Thread to make a Thread in search of harmony
+ */
+class MyThread extends Thread{
+
+    private HarmonySearch hs;
+    private Semaphore sem;
+
+    /**
+     * MyThread constructor
+     * @param hs HarmonySearch
+     * @param sem Semaphore
+     */
+    public MyThread(HarmonySearch hs, Semaphore sem){
+        this.hs = hs;
+        this.sem = sem;
+    }
+
+    @Override
+    public void run() {
+        Data newHarmonyValue;
+        while (System.currentTimeMillis() - this.hs.startime < this.hs.maxTime && this.hs.gn < this.hs.iterationNumber){
+            newHarmonyValue = this.hs.searchOfNewHarmony(this.hs.gn);
+            try{
+                sem.acquire();
+                this.hs.harmoniesMemory.replaceWorstHarmony(newHarmonyValue);
+                this.hs.gn++;
+                sem.release();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}
 
 public class HarmonySearch extends binMeta {
 
     /**
      * Represent an Harmony (a solution) of HarmonyMemory
      */
-    private class Harmony{
+    public static class Harmony extends Data{
 
         private final Data data;
         private final double solution;
-        private int grade;
 
         /**
          * Harmony Constructor
          * @param data function with assigned values
          * @param solution function's solution
-         * @param grade solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
          */
-        public Harmony(Data data, double solution, int grade){
+        public Harmony(Data data, double solution){
+            super(data);
             this.data = data;
             this.solution = solution;
-            this.grade = grade;
         }
 
         /**
@@ -44,149 +78,136 @@ public class HarmonySearch extends binMeta {
             return solution;
         }
 
-        /**
-         * Get the solution's grade
-         * @return int solution's grade
-         */
-        public int getGrade() {
-            return grade;
-        }
-
-        /**
-         * Set the solution's grade
-         * @param grade int solution's grade (0 BEST, 1 MEDIUM, 2 WORST)
-         */
-        public void setGrade(int grade){
-            this.grade = grade;
-        }
-
-        /**
-         * Return the solution's grade to string format
-         * @return string solution's grade to string BEST, WORST or emptyString
-         */
-        private String gradeToString(){
-            String r = "";
-            switch (grade){
-                case 0:
-                    r = "BEST";
-                    break;
-                case 2:
-                    r = "WORST";
-                    break;
-                default:
-                    break;
-            }
-            return r;
-        }
-
         @Override
         public String toString() {
             return "Harmony{" +
                     "data=" + data +
                     ", solution=" + solution +
-                    "," + gradeToString() +
-                    '}';
+                    '}' + "\n";
         }
 
     }
 
     /**
-     * My class of Thread to make a Thread in search of harmony
+     * Represent the harmonies' memory
      */
-    private class MyThread extends Thread{
+    public class HarmoniesMemory{
 
-        private HarmonySearch hs;
-        private Semaphore sem;
+        private Harmony[] HM;
+        private int bestHarmonyIndex = 0;
+        private int worstHarmonyIndex = 0;
+        private int HMS;
 
         /**
-         * MyThread constructor
-         * @param hs HarmonySearch
-         * @param sem Semaphore
+         * HarmoniesMemory Constructor
+         * @param HMS Number of Harmony in HarmonyMemory (MINIMUM 2)
+         * Initialisation of HarmonyMemory
+         * Initialise the HarmonyMemory with a random values, which belong to the objective's set
          */
-        public MyThread(HarmonySearch hs, Semaphore sem){
-            this.hs = hs;
-            this.sem = sem;
+        public HarmoniesMemory(int HMS){
+            this.HMS = HMS;
+            this.HM = new Harmony[HMS];
+            for(int i = 0; i < HMS; i++){
+                Data nextData = new Data(obj.solutionSample());
+                double nextSolution = obj.value(nextData);
+                this.HM[i] = new Harmony(nextData, nextSolution);
+                if (this.HM[i].getSolution() >= this.HM[worstHarmonyIndex].getSolution()){
+                    this.worstHarmonyIndex = i;
+                }
+                if (this.HM[i].getSolution() < this.HM[bestHarmonyIndex].getSolution()){
+                    this.bestHarmonyIndex = i;
+                }
+            }
+            objValue = this.HM[bestHarmonyIndex].getSolution();
+            solution = this.HM[bestHarmonyIndex].getData();
+        }
+
+        /**
+         * Get the harmony of HarmonyMemory by the index
+         * @param index index of the HarmonyMemory
+         * @return Harmony in the index of HarmonyMemory
+         */
+        public Harmony getHarmony(int index){
+            return this.HM[index];
+        }
+
+        /**
+         * Replace the worstHarmony by the newHarmonyData if this is better
+         * @param newHarmonyData The NewHarmony generated
+         */
+        public void replaceWorstHarmony(Data newHarmonyData){
+            double newHarmonyValue = obj.value(newHarmonyData);
+            if (newHarmonyValue < this.HM[worstHarmonyIndex].getSolution()){
+                Harmony newHarmony = new Harmony(newHarmonyData, newHarmonyValue);
+                this.HM[worstHarmonyIndex] = newHarmony;
+                if (newHarmonyValue < this.HM[bestHarmonyIndex].getSolution()){
+                    bestHarmonyIndex = worstHarmonyIndex;
+                }
+                for (int i = 0; i < this.HMS; i++){
+                    if (this.HM[i].getSolution() >= this.HM[worstHarmonyIndex].getSolution()){
+                        worstHarmonyIndex = i;
+                    }
+                }
+                objValue = this.HM[bestHarmonyIndex].getSolution();
+                solution = this.HM[bestHarmonyIndex].getData();
+            }
         }
 
         @Override
-        public void run() {
-            Data newHarmony;
-            while (System.currentTimeMillis() - this.hs.startime < this.hs.maxTime && this.hs.gn < this.hs.iterationNumber){
-                newHarmony = this.hs.searchOfNewHarmony(this.hs.gn);
-                try{
-                    sem.acquire();
-                    int worst = this.hs.getIndexofWorstHarmony();
-                    if (this.hs.obj.value(newHarmony) < this.hs.harmoniesMemory[worst].getSolution()){
-                        this.hs.harmoniesMemory[worst] = new Harmony(newHarmony, this.hs.obj.value(newHarmony), 1);
-                        this.hs.setAllGrade();
-                    }
-                    this.hs.gn++;
-                    sem.release();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
-            }
+        public String toString() {
+            return "HarmoniesMemory{" +
+                    "HM=" + Arrays.toString(HM) +
+                    ",\n bestHarmonyIndex=" + bestHarmonyIndex +
+                    ", worstHarmonyIndex=" + worstHarmonyIndex +
+                    '}';
         }
     }
 
-    private Harmony[] harmoniesMemory;
-    private int HMS = 7; //Number of Harmony in HarmonyMemory (MINIMUM 2)
+    public HarmoniesMemory harmoniesMemory;
+    private int HMS; //Number of Harmony in HarmonyMemory (MINIMUM 2)
     private int musicNoteNumber; //Number of notes(variables) in a harmony
-    private final int iterationNumber = 3000000; //Number of iteration of optimization's step Solution optimum avec 8000000 ITMAX 2000000
+    public int iterationNumber; //Number of iteration of optimization's step Solution optimum avec 8000000 ITMAX 2000000
+    public int gn;
+    public long startime;
     /*
     * Search parameter | Probability of search's type
      */
-    private float HMCR = 0.90f; //(1-HMCR) Probability of full random note creation (random selection)
-    private float PARmin = 0.45f; //Minimum probability between pitch adjusting and memory consideration
-    private float PARmax = 0.85f; //Maximum probability between pitch adjusting and memory consideration
-    private double bwmin = 0.1f; //Minimal distance of jump
-    private double bwmax = 20f; //Maximal distance of jump
-    /*
-    * Generalization of variable for multithreading
-     */
-    private int gn;
-    private long startime;
+    private float HMCR = 0.84f; //(1-HMCR) Probability of full random note creation (random selection)
+    private float PARmin = 0.38f; //Minimum probability between pitch adjusting and memory consideration
+    private float PARmax = 0.99f; //Maximum probability between pitch adjusting and memory consideration
+    private double bwmin = 0f; //Minimal distance of jump
+    private double bwmax; //Maximal distance of jump
 
     /**
      * HarmonySearch Constructor
-     * @param startPoint First solution
      * @param obj Function to minimize
      * @param maxTime The maximum time allowed for the search for solutions
      * @param musicNoteNumber Number of notes(variables) of the function
+     * @param maxIteration The maximum iteration allowed for the search for solutions
      */
-    public HarmonySearch(Data startPoint, Objective obj, long maxTime, int musicNoteNumber){
+    public HarmonySearch(Objective obj, long maxTime, int musicNoteNumber, int maxIteration){
         try
         {
             String msg = "Impossible to create HarmonySearch object: ";
             if (maxTime <= 0) throw new Exception(msg + "the maximum execution time is 0 or even negative");
             this.maxTime = maxTime;
-            if (startPoint == null) throw new Exception(msg + "the reference to the starting point is null");
-            this.solution = startPoint;
             if (obj == null) throw new Exception(msg + "the reference to the objective is null");
             this.obj = obj;
+            this.solution = obj.solutionSample();
             this.objValue = this.obj.value(this.solution);
             this.metaName = "HarmonySearch";
-            if (startPoint.numberOfBits() % musicNoteNumber != 0) throw  new Exception(msg + "division of decision variables impossible");
+            if (obj.solutionSample().numberOfBits() % musicNoteNumber != 0) throw  new Exception(msg + "division of decision variables impossible");
             this.musicNoteNumber = musicNoteNumber;
+            this.bwmax = Math.pow(2,(float) (this.solution.numberOfBits()/musicNoteNumber));
+            this.bwmin = 0f;
+            this.HMS = 4;
+            this.iterationNumber = maxIteration;
         }
         catch (Exception e)
         {
             e.printStackTrace();
             System.exit(1);
         }
-    }
-
-    /**
-     * Print the HarmoniesMemory
-     * @param step Search algorithm step
-     */
-    private void printHM(String step){
-        StringBuilder r = new StringBuilder("Problem : " + obj.name + " N=" + step + "\nHM{ \n");
-        for (int i = 0; i < this.HMS; i++){
-            r.append(harmoniesMemory[i]).append("\n");
-        }
-        r.append("}");
-        System.out.println(r);
     }
 
     /**
@@ -211,67 +232,42 @@ public class HarmonySearch extends binMeta {
         return bwmax * Math.exp((Math.log(bwmin/bwmax)/iterationNumber*gn));
     }
 
-    /**
-     * Initialisation of HarmonyMemory
-     * Initialise the HarmonyMemory with a random values, which belong to the objective's set
-     */
-    private void initialisation(){
-        this.harmoniesMemory = new Harmony[this.HMS];
-        Data nextData = new Data(this.solution);
-        double nextSolution = obj.value(nextData);
-        this.harmoniesMemory[0] = new Harmony(nextData, nextSolution, 1);
-
-        for(int i = 1; i < this.HMS; i++){
-            nextData = new Data(obj.solutionSample());
-            nextSolution = obj.value(nextData);
-            this.harmoniesMemory[i] = new Harmony(nextData, nextSolution, 1);
-        }
-        setAllGrade();
-        //printHM("Init");
-    }
-
     @Override
     public void optimize() {
-        Data newHarmony;
+        this.harmoniesMemory = new HarmoniesMemory(this.HMS);
+        Data newHarmonyValue;
         this.gn = 1; //generation Number
         this.startime = System.currentTimeMillis();
 
         Semaphore sem = new Semaphore(1,true);
         MyThread thread2 = new MyThread(this,sem);
         MyThread thread3 = new MyThread(this,sem);
-        MyThread thread4 = new MyThread(this,sem);
         thread2.start();
         thread3.start();
-        thread4.start();
 
         // Main loop
         while (System.currentTimeMillis() - this.startime < this.maxTime && this.gn < iterationNumber){
-            //System.out.println(this.gn);
-            newHarmony = searchOfNewHarmony(gn);
+            newHarmonyValue = searchOfNewHarmony(gn);
             try{
                 sem.acquire();
-                int worst = getIndexofWorstHarmony();
-                if (obj.value(newHarmony) < harmoniesMemory[worst].getSolution()){
-                    this.harmoniesMemory[worst] = new Harmony(newHarmony, obj.value(newHarmony), 1);
-                    setAllGrade();
-                }
+                harmoniesMemory.replaceWorstHarmony(newHarmonyValue);
                 this.gn++;
                 sem.release();
+                thread2.join();
+                thread3.join();
             } catch (Exception e) {
                 e.printStackTrace();
             }
         }
-        try {
-            thread2.join();
-            thread3.join();
-            thread4.join();
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-
+        System.out.println("\n" + obj.getName() + " Nombre d'itération " + gn);
     }
 
-    private Data searchOfNewHarmony(int gn){
+    /**
+     * Create the Data of new harmony with different methods (Pitch adjustment, Memory consideration, Random selection)
+     * @param gn Nth Iterations, using by the bw(), par() function
+     * @return A function with variable to create a new Harmony
+     */
+    public Data searchOfNewHarmony(int gn){
         Random R = new Random();
         List<Data> newHarmonyValue = new ArrayList<Data>();
         int noteLength = this.solution.numberOfBits()/this.musicNoteNumber;
@@ -283,80 +279,41 @@ public class HarmonySearch extends binMeta {
             par = getPar(gn);
             bw = getBw(gn);
             ran = R.nextFloat();
-
             if (ran < HMCR){
                 int musicNoteCopyIndex = (int)(ran*HMS);
-                Data musicNoteCopy = this.harmoniesMemory[musicNoteCopyIndex].getData();
+                Data musicNoteCopy = new Data(this.harmoniesMemory.getHarmony(musicNoteCopyIndex).getData(),i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1));
                 if (ran < par){
                     // Pitch adjustment
-                    int distanceJump = (int) (ran*bw)+1;
-                    newHarmonyValue.add(new Data(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)).randomSelectInNeighbour(distanceJump)));
+                    int musicNoteValue = musicNoteCopy.intValue();
+                    int distanceJump = (int) (ran*bw);
+                    if (ran < 0.5){
+                        // Adjust pitch up
+                        newHarmonyValue.add(new Data(new Data(musicNoteValue + distanceJump),32-noteLength,31));
+                    }else{
+                        // Adjust pitch down
+                        newHarmonyValue.add(new Data(new Data(musicNoteValue - distanceJump),32-noteLength,31));
+                    }
                 }else{
                     //Memory consideration
-                    newHarmonyValue.add(new Data(musicNoteCopy,i*noteLength,Math.min((i+1)*noteLength-1, this.solution.numberOfBits()-1)));
+                    newHarmonyValue.add(musicNoteCopy);
                 }
             }else{
                 //Random selection
                 newHarmonyValue.add(new Data((Math.min((i+1)*noteLength, this.solution.numberOfBits()) - i*noteLength),0.5f));
+
             }
         }
         return new Data(newHarmonyValue);
     }
 
-    /**
-     * Get the index of worst harmony in the harmony memory
-     * @return int Index of worst harmony
-     */
-    private int getIndexofWorstHarmony(){
-        int worst  = 0;
-        for (int i = 1; i < HMS; i++){
-            if (harmoniesMemory[i].getSolution() > harmoniesMemory[worst].getSolution()){
-                worst = i;
-            }
-        }
-        return worst;
-    }
-
-    /**
-     * Get the index of best harmony in the harmony memory
-     * @return int Index of best harmony
-     */
-    private int getIndexofBestHarmony(){
-        int best  = 0;
-        for (int i = 1; i < HMS; i++){
-            if (harmoniesMemory[i].getSolution() < harmoniesMemory[best].getSolution()){
-                best = i;
-            }
-        }
-        return best;
-    }
-
-    /**
-     * Updates all the notes attributed to our harmonies present in the harmony memory
-     */
-    private void setAllGrade(){
-        int best = getIndexofBestHarmony();
-        int worst = getIndexofWorstHarmony();
-        for (int i = 0; i < HMS; i++){
-            this.harmoniesMemory[i].setGrade(1);
-        }
-        this.harmoniesMemory[best].setGrade(0);
-        this.objValue = this.harmoniesMemory[best].getSolution();
-        this.solution = this.harmoniesMemory[best].getData();
-        this.harmoniesMemory[worst].setGrade(2);
-    }
-
     public static void main(String[] args)
     {
-        int ITMAX = 10000;  // max time
+        int TMAX = 10000;  // max time
 
         // BitCounter
         int n = 50;
         Objective obj = new BitCounter(n);
-        Data D = obj.solutionSample();
-        HarmonySearch hs = new HarmonySearch(D,obj,ITMAX, 1);
-        //Initialisation of HarmonyMemory
-        hs.initialisation();
+        HarmonySearch hs = new HarmonySearch(obj,TMAX, 50, 20000);
         System.out.println(hs);
         System.out.println("starting point : " + hs.getSolution());
         System.out.println("optimizing ...");
@@ -369,10 +326,7 @@ public class HarmonySearch extends binMeta {
         int exp = 2;
         int ndigits = 10;
         obj = new Fermat(exp,ndigits);
-        D = obj.solutionSample();
-        hs = new HarmonySearch(D,obj,ITMAX, 3);
-        //Initialisation of HarmonyMemory
-        hs.initialisation();
+        hs = new HarmonySearch(obj,TMAX, 3, 3000000);
         System.out.println(hs);
         System.out.println("starting point : " + hs.getSolution());
         System.out.println("optimizing ...");
@@ -393,10 +347,7 @@ public class HarmonySearch extends binMeta {
         // ColorPartition
         n = 4;  int m = 14;
         ColorPartition cp = new ColorPartition(n,m);
-        D = cp.solutionSample();
-        hs = new HarmonySearch(D,cp,ITMAX, 1);
-        //Initialisation of HarmonyMemory
-        hs.initialisation();
+        hs = new HarmonySearch(cp,TMAX, 56, 1000000);
         System.out.println(hs);
         System.out.println("starting point : " + hs.getSolution());
         System.out.println("optimizing ...");
@@ -405,8 +356,6 @@ public class HarmonySearch extends binMeta {
         System.out.println("solution : " + hs.getSolution());
         cp.value(hs.solution);
         System.out.println("corresponding to the matrix :\n" + cp.show());
-
-
     }
 
 }
